@@ -37,8 +37,8 @@ modules:
     sources:
       - type: git
         url: https://github.com/fperera123/LibreLinkUpDesktop.git
-        tag: flathub-13
-        commit: ca157fb8a9f3d7b3a54e75a569677ac4e0fe40c8
+        tag: flathub-14
+        commit: 8c8727870b39de84cdf23d28df3a853cb643539a
       - generated-sources.json
       - type: script
         dest-filename: run.sh

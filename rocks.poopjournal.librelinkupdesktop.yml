@@ -38,7 +38,7 @@ modules:
       - type: git
         url: https://github.com/Crazy-Marvin/LibreLinkUpDesktop.git
         tag: v0.1.10
-        commit: 600362e
+        commit: 600362ea042bbb078a5012161c4287e98f7e0393
       - generated-sources.json
       - type: script
         dest-filename: run.sh

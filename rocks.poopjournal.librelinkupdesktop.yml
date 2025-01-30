@@ -37,7 +37,7 @@ modules:
     sources:
       - type: git
         url: https://github.com/fperera123/LibreLinkUpDesktop.git
-        tag: v13-1
+        tag: v13-2
         commit: fddaa034a8b92bada4b9e9b4bd80fb277c9185c0
       - generated-sources.json
       - type: script

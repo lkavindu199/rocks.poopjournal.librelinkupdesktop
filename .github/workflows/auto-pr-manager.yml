@@ -46,20 +46,19 @@ jobs:
     needs: check-commit
     if: needs.check-commit.outputs.should-create-pr == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
           fetch-depth: 0
 
       - name: Create Pull Request using GitHub API
+        env:
+          PAT: ${{ secrets.PAT }}
         run: |
           PR_RESPONSE=$(curl -s -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: token $PAT" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ env.TARGET_REPO }}/pulls \
             -d '{
@@ -89,21 +88,21 @@ jobs:
       contains(github.event.comment.body, '✅ Test build succeeded') &&
       (github.event.comment.user.login == 'flathubbot' || github.event.comment.user.login == 'flathub')
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
     steps:
       - name: Close Pull Request using GitHub API
+        env:
+          PAT: ${{ secrets.PAT }}
         run: |
           # Close the PR
           curl -s -X PATCH \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: token $PAT" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ env.TARGET_REPO }}/pulls/${{ github.event.issue.number }} \
             -d '{"state": "closed"}'
           
           # Add closure comment
           curl -s -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: token $PAT" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ env.TARGET_REPO }}/issues/${{ github.event.issue.number }}/comments \
             -d '{

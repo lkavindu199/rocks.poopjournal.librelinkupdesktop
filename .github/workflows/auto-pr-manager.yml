@@ -8,8 +8,8 @@ env:
   TARGET_REPO: flathub/rocks.poopjournal.librelinkupdesktop
   TARGET_OWNER: flathub
   TARGET_REPO_NAME: rocks.poopjournal.librelinkupdesktop
-  SOURCE_REPO: deviitorinc/rocks.poopjournal.librelinkupdesktop
-  SOURCE_OWNER: deviitorinc
+  SOURCE_REPO: lkavindu199/rocks.poopjournal.librelinkupdesktop
+  SOURCE_OWNER: lkavindu199
   SOURCE_BRANCH: master
   TARGET_BRANCH: master
 

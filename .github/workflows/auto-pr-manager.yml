@@ -1,0 +1,113 @@
+name: Auto PR Manager for Flathub
+
+on:
+  push:
+    branches: [ master ]
+
+env:
+  TARGET_REPO: flathub/rocks.poopjournal.librelinkupdesktop
+  TARGET_OWNER: flathub
+  TARGET_REPO_NAME: rocks.poopjournal.librelinkupdesktop
+  SOURCE_REPO: deviitorinc/rocks.poopjournal.librelinkupdesktop
+  SOURCE_OWNER: deviitorinc
+  SOURCE_BRANCH: master
+  TARGET_BRANCH: master
+
+jobs:
+  check-commit:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      should-create-pr: ${{ steps.check.outputs.should-create-pr }}
+    steps:
+      - name: Check commit conditions
+        id: check
+        run: |
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          COMMIT_AUTHOR="${{ github.event.head_commit.author.name }}"
+          
+          echo "Commit message: $COMMIT_MSG"
+          echo "Commit author: $COMMIT_AUTHOR"
+          echo "Source: ${{ env.SOURCE_REPO }}"
+          echo "Target: ${{ env.TARGET_REPO }}"
+          
+          #if [[ "$COMMIT_MSG" == "chore: Update manifest with latest commit"* ]] && \
+          #   [[ "$COMMIT_AUTHOR" == "github-actions[bot]" ]]; then
+          #  echo "✅ Conditions met - will create PR to Flathub"
+          #  echo "should-create-pr=true" >> $GITHUB_OUTPUT
+          #else
+          #  echo "❌ Conditions not met"
+          #  echo "should-create-pr=false" >> $GITHUB_OUTPUT
+          #fi
+          echo "✅ TEST MODE: Conditions bypassed - will create PR to Flathub"
+          echo "should-create-pr=true" >> $GITHUB_OUTPUT
+
+  create-pr-to-flathub:
+    needs: check-commit
+    if: needs.check-commit.outputs.should-create-pr == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Create Pull Request using GitHub API
+        run: |
+          PR_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ env.TARGET_REPO }}/pulls \
+            -d '{
+              "title": "Update manifest with latest commit - ${{ github.sha }}",
+              "body": "🤖 Automated PR from ${{ env.SOURCE_REPO }}\n\n**Source Repository:** ${{ env.SOURCE_REPO }}\n**Target Repository:** ${{ env.TARGET_REPO }}\n**Commit:** ${{ github.sha }}\n**Commit message:** ${{ github.event.head_commit.message }}\n**Author:** ${{ github.event.head_commit.author.name }}\n\nThis PR will be automatically closed when the Flathub test build succeeds.\n\nCC: @${{ env.SOURCE_OWNER }}",
+              "head": "${{ env.SOURCE_OWNER }}:${{ env.SOURCE_BRANCH }}",
+              "base": "${{ env.TARGET_BRANCH }}"
+            }')
+          
+          echo "PR creation response: $PR_RESPONSE"
+          
+          # Extract PR number from response
+          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r '.number')
+          if [ "$PR_NUMBER" != "null" ]; then
+            echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+            echo "✅ PR created successfully: #$PR_NUMBER"
+          else
+            echo "❌ Failed to create PR"
+            echo "Response: $PR_RESPONSE"
+            exit 1
+          fi
+
+  close-pr-on-success:
+    if: |
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '✅ Test build succeeded') &&
+      (github.event.comment.user.login == 'flathubbot' || github.event.comment.user.login == 'flathub')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Close Pull Request using GitHub API
+        run: |
+          # Close the PR
+          curl -s -X PATCH \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ env.TARGET_REPO }}/pulls/${{ github.event.issue.number }} \
+            -d '{"state": "closed"}'
+          
+          # Add closure comment
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ env.TARGET_REPO }}/issues/${{ github.event.issue.number }}/comments \
+            -d '{
+              "body": "🤖 Automated closure: Flathub test build succeeded!\n\nThe PR from **${{ env.SOURCE_REPO }}** to **${{ env.TARGET_REPO }}** has been automatically closed since the Flathub test build completed successfully.\n\n**Test build comment:**\n> ${{ github.event.comment.body }}\n\n**Comment by:** @${{ github.event.comment.user.login }}\n\nCC: @${{ env.SOURCE_OWNER }}"
+            }'
+          
+          echo "✅ PR #${{ github.event.issue.number }} closed successfully"
